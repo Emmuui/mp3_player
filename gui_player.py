@@ -1,11 +1,8 @@
 import os
 import shutil
 from tkinter import *
-import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, ttk
 import pygame
-
-import func_player
 
 
 class App:
@@ -24,6 +21,7 @@ class App:
         self.cur_song = ''
         self.frame_add_del_music()
         self.frame_song_list()
+        self.frame_current_song()
         self.frame_controller_button()
         self.root.mainloop()
 
@@ -42,9 +40,17 @@ class App:
     # Frame for song list
     def frame_song_list(self):
         list_frame = Frame(self.root)
-        self.listbox = Listbox(list_frame, bg=self.bg, selectmode=EXTENDED, width=60, height=15)
+        self.listbox = Listbox(list_frame, bg=self.bg, selectmode=EXTENDED, width=60, height=10)
+        self.listbox.bind('<Double-Button-1>', self.func_double_click)
         self.listbox.pack()
         list_frame.grid(row=1, pady=15)
+
+    def frame_current_song(self):
+        current_song_frame = Frame(self.root)
+        self.label_cur_song = Label(current_song_frame, text='Choose song to play',
+                                    bg='dark grey', fg='white', width=60, height=2)
+        self.label_cur_song.pack()
+        current_song_frame.grid(row=2, pady=5)
 
     # Frame for manipulate songs via buttons
     def frame_controller_button(self):
@@ -59,7 +65,8 @@ class App:
         # button current song
         self.image_pause_song = PhotoImage(file=r'../mp3player/images/pause-control-song.png')
         self.image_play_song = PhotoImage(file=r'../mp3player/images/play-control-song.png')
-        self.button_current_song = Button(button_frame, text='play', image=self.image_play_song, command=self.play_stop_song)
+        self.button_current_song = Button(button_frame, text='play',
+                                          image=self.image_play_song, command=self.play_stop_song)
         self.button_current_song.image = self.image_play_song
         self.button_current_song.grid(row=0, column=1, padx=5)
 
@@ -77,7 +84,11 @@ class App:
         button_next_song.image = image_next_song
         button_next_song.grid(row=0, column=2, padx=5)
 
-        button_frame.grid(row=2)
+        self.volume_slider = ttk.Scale(button_frame, from_=0, to=1, orient=HORIZONTAL,
+                                       value=0.5, command=self.change_volume, length=70)
+        self.volume_slider.grid(row=0, column=3, padx=5)
+
+        button_frame.grid(row=3)
 
 ########################################################################################################################
 #                                     Create all functions needed for button
@@ -85,6 +96,7 @@ class App:
     def song_to_play(self):
         index = int(self.listbox.curselection()[0])
         self.cur_song = self.list_all_song[index]
+        self.label_cur_song['text'] = os.path.basename(self.cur_song).replace('.mp3', '')
         self.func_play_song()
 
     # function for playing song
@@ -114,15 +126,23 @@ class App:
 
     # Function for previous song
     def function_prev_song(self):
+        self.button_current_song['text'] = 'stop'
+        self.button_current_song.config(image=self.image_pause_song)
         index = self.list_all_song.index(self.cur_song) - 1
         self.cur_song = self.list_all_song[index]
+        self.label_cur_song['text'] = os.path.basename(self.cur_song).replace('.mp3', '')
         print(self.cur_song)
         self.func_play_song()
 
     # Function for next song
     def function_next_song(self):
+        self.button_current_song['text'] = 'stop'
+        self.button_current_song.config(image=self.image_pause_song)
         index = self.list_all_song.index(self.cur_song) + 1
+        if self.cur_song == self.list_all_song[-1]:
+            index = 0
         self.cur_song = self.list_all_song[index]
+        self.label_cur_song['text'] = os.path.basename(self.cur_song).replace('.mp3', '')
         print(self.cur_song)
         self.func_play_song()
 
@@ -153,6 +173,16 @@ class App:
                 self.listbox.insert(END, name_song)
                 print(f'some_song: {some_song}')
                 print(self.list_all_song)
+
+    def func_double_click(self, event):
+        self.song_to_play()
+        self.button_current_song['text'] = 'stop'
+        self.button_current_song.config(image=self.image_pause_song)
+
+    @staticmethod
+    def change_volume(event):
+        volume = float(event)
+        pygame.mixer.music.set_volume(volume)
 
 
 if __name__ == '__main__':
