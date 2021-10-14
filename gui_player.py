@@ -225,6 +225,9 @@ class App:
             self.mute_unmute.config(image=self.image_mute)
             self.mute_unmute['text'] = 'mute'
 
+    def slider_position(self):
+        pass
+
 
 if __name__ == '__main__':
     app = App()
