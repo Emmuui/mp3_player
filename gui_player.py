@@ -7,6 +7,7 @@ import pygame
 
 class App:
     list_all_song = []
+    name_of_song = []
     index = 0
 
     def __init__(self):
@@ -34,6 +35,12 @@ class App:
         button_prev_song = Button(add_del_frame, image=image_prev_song, command=self.add_song)
         button_prev_song.image = image_prev_song
         button_prev_song.grid(row=0, column=0, padx=5)
+
+        image_next_song = PhotoImage(file=r'../mp3player/images/next_song.png')
+        self.sort_by_date = Button(add_del_frame, image=image_next_song, text='newest',
+                                   command=self.sort_by_newest_song)
+        self.sort_by_date.image = image_next_song
+        self.sort_by_date.grid(row=0, column=1, padx=5)
 
         add_del_frame.grid(row=0)
 
@@ -84,10 +91,15 @@ class App:
         button_next_song.image = image_next_song
         button_next_song.grid(row=0, column=2, padx=5)
 
-        self.volume_slider = ttk.Scale(button_frame, from_=0, to=1, orient=HORIZONTAL,
-                                       value=0.5, command=self.change_volume, length=70)
-        self.volume_slider.grid(row=0, column=3, padx=5)
+        self.image_unmute = PhotoImage(file=r'../mp3player/images/unmute_song.png')
+        self.image_mute = PhotoImage(file=r'../mp3player/images/mute_song.png')
+        self.mute_unmute = Button(button_frame, image=self.image_unmute, text='unmute', command=self.mute_volume)
+        self.mute_unmute.image = self.image_unmute
+        self.mute_unmute.grid(row=0, column=3, padx=5)
 
+        self.volume_slider = ttk.Scale(button_frame, from_=0, to=1, orient=HORIZONTAL,
+                                       command=self.change_volume, length=70)
+        self.volume_slider.grid(row=0, column=4, padx=5)
         button_frame.grid(row=3)
 
 ########################################################################################################################
@@ -164,25 +176,54 @@ class App:
                 raise shutil.SameFileError
             else:
                 copy_file = shutil.copy(some_song, destination)
-                new_location = os.path.abspath(copy_file)
-                self.list_all_song.append(new_location)
-
+                self.new_location = os.path.abspath(copy_file)
+                self.list_all_song.append(self.new_location)
                 print("File copied successfully.")
                 name_song = os.path.basename(some_song)
                 name_song = name_song.replace('.mp3', '')
+                # self.name_of_song.append(self.name_song)
                 self.listbox.insert(END, name_song)
-                print(f'some_song: {some_song}')
-                print(self.list_all_song)
 
     def func_double_click(self, event):
         self.song_to_play()
         self.button_current_song['text'] = 'stop'
         self.button_current_song.config(image=self.image_pause_song)
 
-    @staticmethod
-    def change_volume(event):
-        volume = float(event)
-        pygame.mixer.music.set_volume(volume)
+    def sort_by_newest_song(self):
+        if self.sort_by_date['text'] == 'newest':
+            self.time_sorted_list = sorted(self.list_all_song, key=os.path.getmtime)
+            self.time_sorted_list.reverse()
+            sorted_filename_list = [os.path.basename(i) for i in self.time_sorted_list]
+            self.listbox.delete(0, END)
+            for sorted_list in sorted_filename_list:
+                self.listbox.insert(END, sorted_list)
+            self.list_all_song = self.time_sorted_list
+            self.sort_by_date['text'] = 'oldest'
+        elif self.sort_by_date['text'] == 'oldest':
+            self.time_sorted_list.reverse()
+            self.listbox.delete(0, END)
+            sorted_filename_list = [os.path.basename(i) for i in self.time_sorted_list]
+            for sorted_list in sorted_filename_list:
+                self.listbox.insert(END, sorted_list)
+            self.list_all_song = self.time_sorted_list
+            self.sort_by_date['text'] = 'newest'
+
+    def change_volume(self, event):
+        self.volume = float(event)
+        pygame.mixer.music.set_volume(self.volume)
+
+    def mute_volume(self):
+        if self.mute_unmute['text'] == 'mute':
+            pygame.mixer.music.set_volume(50)
+            self.volume_slider.set(0.5)
+            self.mute_unmute.config(image=self.image_unmute)
+            self.mute_unmute['text'] = 'unmute'
+        elif self.mute_unmute['text'] == 'unmute':
+            mute_volume = 0
+            self.volume_slider.set(0.0)
+            pygame.mixer.music.set_volume(mute_volume)
+            self.mute_unmute.config(image=self.image_mute)
+            self.mute_unmute['text'] = 'mute'
 
 
 if __name__ == '__main__':
