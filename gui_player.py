@@ -2,7 +2,9 @@ import os
 import shutil
 from tkinter import *
 from tkinter import filedialog, ttk
+import time
 import pygame
+from mutagen.mp3 import MP3
 
 
 class App:
@@ -20,6 +22,12 @@ class App:
         self.font = 'Times new Roman 13 bold'
         self.conf = {'padx': (40, 10), 'pady': 10}
         self.cur_song = ''
+        self.cur_time = 0
+        self.song_volume = 0.5
+        self.playtime = None
+        self.text = 'newest'
+        self.increment = True
+        self.id = 0
         self.frame_add_del_music()
         self.frame_song_list()
         self.frame_current_song()
@@ -31,16 +39,16 @@ class App:
     # Frame add song, folder or delete song
     def frame_add_del_music(self):
         add_del_frame = Frame(self.root)
-        image_prev_song = PhotoImage(file=r'../mp3player/images/previous_song.png')
-        button_prev_song = Button(add_del_frame, image=image_prev_song, command=self.add_song)
-        button_prev_song.image = image_prev_song
+        image_browse_song = PhotoImage(file=r'../mp3player/images/browse.png')
+        button_prev_song = Button(add_del_frame, image=image_browse_song, command=self.add_song)
+        button_prev_song.image = image_browse_song
         button_prev_song.grid(row=0, column=0, padx=5)
 
-        image_next_song = PhotoImage(file=r'../mp3player/images/next_song.png')
-        self.sort_by_date = Button(add_del_frame, image=image_next_song, text='newest',
-                                   command=self.sort_by_newest_song)
-        self.sort_by_date.image = image_next_song
-        self.sort_by_date.grid(row=0, column=1, padx=5)
+        self.main_menu = Menu()
+        self.root.config(menu=self.main_menu)
+        self.sort_by_date = Menu(self.main_menu)
+        self.sort_by_date.add_command(label='By date', command=self.sort_by_newest_song)
+        self.main_menu.add_cascade(label='Sort song', menu=self.sort_by_date)
 
         add_del_frame.grid(row=0)
 
@@ -52,22 +60,33 @@ class App:
         self.listbox.pack()
         list_frame.grid(row=1, pady=15)
 
+########################################################################################################################
+
     def frame_current_song(self):
         current_song_frame = Frame(self.root)
         self.label_cur_song = Label(current_song_frame, text='Choose song to play',
                                     bg='dark grey', fg='white', width=60, height=2)
-        self.label_cur_song.pack()
+        self.label_cur_song.grid(row=0, column=0)
+        self.position_slider = ttk.Scale(current_song_frame, from_=0, to=100, orient=HORIZONTAL,
+                                         value=0, length=300, command=self.song_info)
+        self.position_slider.grid(row=1, column=0)
+
+        # self.slider_label = Label(current_song_frame, text='0')
+        # self.slider_label.grid(row=2, column=0)
         current_song_frame.grid(row=2, pady=5)
 
     # Frame for manipulate songs via buttons
     def frame_controller_button(self):
         button_frame = Frame(self.root)
 
+        self.time_song = Label(button_frame, text='00:00 / 00:00')
+        self.time_song.grid(row=0, column=0, padx=5)
+
         # button previous song
         image_prev_song = PhotoImage(file=r'../mp3player/images/previous_song.png')
         button_prev_song = Button(button_frame, image=image_prev_song, command=self.function_prev_song)
         button_prev_song.image = image_prev_song
-        button_prev_song.grid(row=0, column=0, padx=5)
+        button_prev_song.grid(row=0, column=1, padx=5)
 
         # button current song
         self.image_pause_song = PhotoImage(file=r'../mp3player/images/pause-control-song.png')
@@ -75,47 +94,69 @@ class App:
         self.button_current_song = Button(button_frame, text='play',
                                           image=self.image_play_song, command=self.play_stop_song)
         self.button_current_song.image = self.image_play_song
-        self.button_current_song.grid(row=0, column=1, padx=5)
+        self.button_current_song.grid(row=0, column=2, padx=5)
 
-        if os.path.exists('mp3'):
-            for song in os.listdir('mp3'):
-                path_to_mp3_folder = os.path.abspath('mp3')
-                self.list_all_song.append(fr'{path_to_mp3_folder}\{song}')
-                self.listbox.insert(END, song.replace('.mp3', ''))
-        elif not os.path.exists('mp3'):
-            os.mkdir('mp3')
+        self.folder_song()
 
         # button next song
         image_next_song = PhotoImage(file=r'../mp3player/images/next_song.png')
         button_next_song = Button(button_frame, image=image_next_song, command=self.function_next_song)
         button_next_song.image = image_next_song
-        button_next_song.grid(row=0, column=2, padx=5)
+        button_next_song.grid(row=0, column=3, padx=5)
 
         self.image_unmute = PhotoImage(file=r'../mp3player/images/unmute_song.png')
         self.image_mute = PhotoImage(file=r'../mp3player/images/mute_song.png')
         self.mute_unmute = Button(button_frame, image=self.image_unmute, text='unmute', command=self.mute_volume)
         self.mute_unmute.image = self.image_unmute
-        self.mute_unmute.grid(row=0, column=3, padx=5)
+        self.mute_unmute.grid(row=0, column=4, padx=5)
 
         self.volume_slider = ttk.Scale(button_frame, from_=0, to=1, orient=HORIZONTAL,
-                                       command=self.change_volume, length=70)
-        self.volume_slider.grid(row=0, column=4, padx=5)
+                                       command=self.change_volume, length=70, value=self.song_volume)
+        self.volume_slider.grid(row=0, column=5, padx=5)
+
         button_frame.grid(row=3)
 
 ########################################################################################################################
 #                                     Create all functions needed for button
     # identify selected song
     def song_to_play(self):
+        print('def song_to_play():')
         index = int(self.listbox.curselection()[0])
         self.cur_song = self.list_all_song[index]
+        song_mp3 = MP3(self.cur_song)
+        self.len_song = song_mp3.info.length
         self.label_cur_song['text'] = os.path.basename(self.cur_song).replace('.mp3', '')
+        self.cur_time = 0
+        self.position_slider.config(to=int(self.len_song), value=int(self.cur_time))
         self.func_play_song()
 
     # function for playing song
     def func_play_song(self):
+        print('def func_play_song():')
         song = self.cur_song
+        pygame.mixer.music.set_volume(self.song_volume)
         pygame.mixer.music.load(song)
-        pygame.mixer.music.play(loops=0)
+        pygame.mixer.music.play(start=0)
+
+        self.track_play()
+
+    def track_play(self):
+        print(f'def track_play(): {self.increment}')
+        self.cur_time += 1
+        if int(self.cur_time) == int(self.len_song):
+            self.cur_time = 0
+            self.function_next_song()
+        convert_len_song = time.strftime('%M:%S', time.gmtime(self.len_song))
+        convert_cur_time = time.strftime('%M:%S', time.gmtime(self.cur_time))
+        self.position_slider.config(to=int(self.len_song), value=int(self.cur_time))
+        self.time_song.config(text=f'{convert_cur_time} / {convert_len_song}')
+        self.id = self.root.after(1000, self.track_play)
+
+    def song_info(self, x):
+        print('def song_info')
+        self.cur_time = int(self.position_slider.get())
+        self.position_slider.config(value=int(self.cur_time))
+        pygame.mixer.music.play(start=int(self.position_slider.get()))
 
     # switch between play and stop song
     def play_stop_song(self):
@@ -134,7 +175,7 @@ class App:
             elif self.button_current_song['text'] == 'play':
                 self.button_current_song['text'] = 'stop'
                 self.button_current_song.config(image=self.image_pause_song)
-                self.func_play_song()
+                pygame.mixer.music.unpause()
 
     # Function for previous song
     def function_prev_song(self):
@@ -160,7 +201,10 @@ class App:
 
     def folder_song(self):
         if os.path.exists('mp3'):
-            self.listbox.insert(END, os.listdir('mp3'))
+            for song in os.listdir('mp3'):
+                path_to_mp3_folder = os.path.abspath('mp3')
+                self.list_all_song.append(fr'{path_to_mp3_folder}\{song}')
+                self.listbox.insert(END, song.replace('.mp3', ''))
         elif not os.path.exists('mp3'):
             os.mkdir('mp3')
 
@@ -190,23 +234,25 @@ class App:
         self.button_current_song.config(image=self.image_pause_song)
 
     def sort_by_newest_song(self):
-        if self.sort_by_date['text'] == 'newest':
+        if self.text == 'newest':
             self.time_sorted_list = sorted(self.list_all_song, key=os.path.getmtime)
             self.time_sorted_list.reverse()
             sorted_filename_list = [os.path.basename(i) for i in self.time_sorted_list]
             self.listbox.delete(0, END)
             for sorted_list in sorted_filename_list:
-                self.listbox.insert(END, sorted_list)
+                sort = sorted_list.replace('.mp3', '')
+                self.listbox.insert(END, sort)
             self.list_all_song = self.time_sorted_list
-            self.sort_by_date['text'] = 'oldest'
-        elif self.sort_by_date['text'] == 'oldest':
+            self.text = 'oldest'
+        elif self.text == 'oldest':
             self.time_sorted_list.reverse()
             self.listbox.delete(0, END)
             sorted_filename_list = [os.path.basename(i) for i in self.time_sorted_list]
             for sorted_list in sorted_filename_list:
-                self.listbox.insert(END, sorted_list)
+                sort = sorted_list.replace('.mp3', '')
+                self.listbox.insert(END, sort)
             self.list_all_song = self.time_sorted_list
-            self.sort_by_date['text'] = 'newest'
+            self.text = 'newest'
 
     def change_volume(self, event):
         self.volume = float(event)
@@ -224,9 +270,6 @@ class App:
             pygame.mixer.music.set_volume(mute_volume)
             self.mute_unmute.config(image=self.image_mute)
             self.mute_unmute['text'] = 'mute'
-
-    def slider_position(self):
-        pass
 
 
 if __name__ == '__main__':
