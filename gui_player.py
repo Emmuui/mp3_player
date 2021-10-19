@@ -25,7 +25,9 @@ class App:
         self.cur_song = ''
         self.cur_time = 0
         self.song_volume = 0.5
-        self.text = 'newest'
+        self.text_new = False
+        self.text_old = False
+        self.text_name = False
         self.id = None
         self.is_on = False
         self.same_song_on = False
@@ -45,11 +47,13 @@ class App:
         button_prev_song.image = image_browse_song
         button_prev_song.grid(row=0, column=0, padx=5)
 
-        self.main_menu = Menu()
+        self.main_menu = Menu(self.root)
         self.root.config(menu=self.main_menu)
-        self.sort_by_date = Menu(self.main_menu)
-        self.sort_by_date.add_command(label='By date', command=self.sort_by_newest_song)
-        self.main_menu.add_cascade(label='Sort song', menu=self.sort_by_date)
+        self.sort = Menu(self.main_menu)
+        self.sort.add_command(label='By new song', command=self.sort_by_newest_song)
+        self.sort.add_command(label='By old song', command=self.sort_by_oldest_song)
+        self.sort.add_command(label='By name', command=self.sort_name)
+        self.main_menu.add_cascade(label='Sort song', menu=self.sort)
 
         image_repeat_song = PhotoImage(file=r'../mp3player/images/repeat_song.png')
         self.button_repeat_song = Button(add_del_frame, image=image_repeat_song, bg='white')
@@ -208,10 +212,13 @@ class App:
             if self.button_current_song['text'] == 'stop':
                 self.button_current_song.config(image=self.image_play_song)
                 self.button_current_song['text'] = 'play'
+                if self.id is not None:
+                    self.root.after_cancel(self.id)
                 pygame.mixer.music.pause()
             elif self.button_current_song['text'] == 'play':
                 self.button_current_song['text'] = 'stop'
                 self.button_current_song.config(image=self.image_pause_song)
+                self.id = self.root.after(1000, self.track_play)
                 pygame.mixer.music.unpause()
 
     # Function for previous song
@@ -270,25 +277,30 @@ class App:
         self.button_current_song.config(image=self.image_pause_song)
 
     def sort_by_newest_song(self):
-        if self.text == 'newest':
-            self.time_sorted_list = sorted(self.list_all_song, key=os.path.getmtime)
-            self.time_sorted_list.reverse()
-            sorted_filename_list = [os.path.basename(i) for i in self.time_sorted_list]
+        if not self.text_new:
+            self.text_new = True
+            self.sorted_list = sorted(self.list_all_song, key=os.path.getmtime)
+            self.sorted_list.reverse()
+            print(self.sorted_list)
+            sorted_filename_list = [os.path.basename(i) for i in self.sorted_list]
             self.listbox.delete(0, END)
             for sorted_list in sorted_filename_list:
                 sort = sorted_list.replace('.mp3', '')
                 self.listbox.insert(END, sort)
-            self.list_all_song = self.time_sorted_list
-            self.text = 'oldest'
-        elif self.text == 'oldest':
-            self.time_sorted_list.reverse()
+            self.list_all_song = self.sorted_list
+            self.text_new = False
+
+    def sort_by_oldest_song(self):
+        if not self.text_old:
+            self.text_old = True
+            self.sorted_list = sorted(self.list_all_song, key=os.path.getmtime)
             self.listbox.delete(0, END)
-            sorted_filename_list = [os.path.basename(i) for i in self.time_sorted_list]
+            sorted_filename_list = [os.path.basename(i) for i in self.sorted_list]
             for sorted_list in sorted_filename_list:
                 sort = sorted_list.replace('.mp3', '')
                 self.listbox.insert(END, sort)
-            self.list_all_song = self.time_sorted_list
-            self.text = 'newest'
+            self.list_all_song = self.sorted_list
+            self.text_old = False
 
     def change_volume(self, event):
         self.volume = float(event)
@@ -307,8 +319,27 @@ class App:
             self.mute_unmute.config(image=self.image_mute)
             self.mute_unmute['text'] = 'mute'
 
-    def sort_by_name(self):
-        pass
+    def sort_name(self):
+        if not self.text_name:
+            self.sorted_list = sorted(self.list_all_song)
+            print(self.sorted_list, 'sorted list')
+            self.sorted_list.reverse()
+            sorted_filename_list = [os.path.basename(i) for i in self.sorted_list]
+            self.listbox.delete(0, END)
+            for sorted_list in sorted_filename_list:
+                sort = sorted_list.replace('.mp3', '')
+                self.listbox.insert(END, sort)
+            self.list_all_song = self.sorted_list
+            self.text_name = True
+        elif self.text_name:
+            self.sorted_list = sorted(self.list_all_song)
+            self.listbox.delete(0, END)
+            sorted_filename_list = [os.path.basename(i) for i in self.sorted_list]
+            for sorted_list in sorted_filename_list:
+                sort = sorted_list.replace('.mp3', '')
+                self.listbox.insert(END, sort)
+            self.list_all_song = self.sorted_list
+            self.text_name = False
 
     def switch_is_on(self, x):
         if not self.is_on:
