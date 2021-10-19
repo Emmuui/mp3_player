@@ -42,13 +42,14 @@ class App:
     # Frame add song, folder or delete song
     def frame_add_del_music(self):
         add_del_frame = Frame(self.root)
-        image_browse_song = PhotoImage(file=r'../mp3player/images/browse.png')
-        button_prev_song = Button(add_del_frame, image=image_browse_song, command=self.add_song)
-        button_prev_song.image = image_browse_song
-        button_prev_song.grid(row=0, column=0, padx=5)
-
-        self.main_menu = Menu(self.root)
+        self.main_menu = Menu()
         self.root.config(menu=self.main_menu)
+        self.func = Menu(self.main_menu)
+        self.func.add_command(label='Add song', command=self.add_song)
+        self.func.add_command(label='Del song', command=self.delete_song)
+        self.func.add_command(label='Del all song', command=self.delete_all_song)
+        self.main_menu.add_cascade(label='File', menu=self.func)
+
         self.sort = Menu(self.main_menu)
         self.sort.add_command(label='By new song', command=self.sort_by_newest_song)
         self.sort.add_command(label='By old song', command=self.sort_by_oldest_song)
@@ -59,20 +60,24 @@ class App:
         self.button_repeat_song = Button(add_del_frame, image=image_repeat_song, bg='white')
         self.button_repeat_song.image = image_repeat_song
         self.button_repeat_song.bind('<Button-1>', self.same_song)
-        self.button_repeat_song.grid(row=0, column=2, padx=5)
+        self.button_repeat_song.grid(row=0, column=1, padx=5)
 
         image_random_song = PhotoImage(file=r'../mp3player/images/random_song.png')
         self.button_random_song = Button(add_del_frame, image=image_random_song, bg='white')
         self.button_random_song.image = image_random_song
         self.button_random_song.bind('<Button-1>', self.switch_is_on)
-        self.button_random_song.grid(row=0, column=3, padx=5)
+        self.button_random_song.grid(row=0, column=2, padx=5)
         add_del_frame.grid(row=0)
 
     # Frame for song list
     def frame_song_list(self):
         list_frame = Frame(self.root)
+        scrollbar = Scrollbar(list_frame)
+        scrollbar.pack(side=RIGHT, fill=BOTH)
         self.listbox = Listbox(list_frame, bg=self.bg, selectmode=EXTENDED, width=60, height=10)
         self.listbox.bind('<Double-Button-1>', self.func_double_click)
+        self.listbox.config(yscrollcommand=scrollbar.set)
+        scrollbar.config(command=self.listbox.yview)
         self.listbox.pack()
         list_frame.grid(row=1, pady=15)
 
@@ -260,7 +265,7 @@ class App:
         for some_song in song:
             if os.path.basename(some_song) in os.listdir('mp3'):
                 print('Same file error')
-                raise shutil.SameFileError
+                continue
             else:
                 copy_file = shutil.copy(some_song, destination)
                 self.new_location = os.path.abspath(copy_file)
@@ -268,7 +273,6 @@ class App:
                 print("File copied successfully.")
                 name_song = os.path.basename(some_song)
                 name_song = name_song.replace('.mp3', '')
-                # self.name_of_song.append(self.name_song)
                 self.listbox.insert(END, name_song)
 
     def func_double_click(self, event):
@@ -356,6 +360,14 @@ class App:
             self.same_song_on = False
 
         print(f'self.same_song_on = {self.same_song_on} in same_song')
+
+    def delete_song(self):
+        pygame.mixer.music.pause()
+        self.listbox.delete(ANCHOR)
+
+    def delete_all_song(self):
+        pygame.mixer.music.pause()
+        self.listbox.delete(0, END)
 
 
 if __name__ == '__main__':
