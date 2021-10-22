@@ -6,16 +6,21 @@ import time
 import pygame
 from mutagen.mp3 import MP3
 import random
+from tkinter import messagebox
 
 
 class App:
     list_all_song = []
-    name_of_song = []
     index = 0
 
     def __init__(self):
         pygame.mixer.init()
         self.root = Tk()
+        w = self.root.winfo_screenwidth()
+        h = self.root.winfo_screenheight()
+        w = (w // 2) - (410 // 2)
+        h = (h // 2) - (400 // 2)
+        self.root.geometry(f'410x400+{w}+{h}')
         self.root.title('MP3 Player')
         self.root.iconbitmap('images/MP3.ico')
         self.root.resizable(width=False, height=False)
@@ -25,12 +30,14 @@ class App:
         self.cur_song = ''
         self.cur_time = 0
         self.song_volume = 0.5
+        self.name_song = None
         self.text_new = False
         self.text_old = False
         self.text_name = False
         self.id = None
         self.is_on = False
         self.same_song_on = False
+        self.var = IntVar()
         self.frame_add_del_music()
         self.frame_song_list()
         self.frame_current_song()
@@ -262,6 +269,9 @@ class App:
         song = filedialog.askopenfilenames(title='song', filetype=(('mp3 Files', '*.mp3'),))
         destination = 'mp3'
 
+        if not os.path.exists('mp3'):
+            os.mkdir('mp3')
+
         for some_song in song:
             if os.path.basename(some_song) in os.listdir('mp3'):
                 print('Same file error')
@@ -271,9 +281,10 @@ class App:
                 self.new_location = os.path.abspath(copy_file)
                 self.list_all_song.append(self.new_location)
                 print("File copied successfully.")
-                name_song = os.path.basename(some_song)
-                name_song = name_song.replace('.mp3', '')
-                self.listbox.insert(END, name_song)
+                self.name_song = os.path.basename(some_song)
+                self.name_song = self.name_song.replace('.mp3', '')
+                self.listbox.insert(END, self.name_song)
+                print(self.list_all_song)
 
     def func_double_click(self, event):
         self.song_to_play()
@@ -361,13 +372,35 @@ class App:
 
         print(f'self.same_song_on = {self.same_song_on} in same_song')
 
-    def delete_song(self):
-        pygame.mixer.music.pause()
-        self.listbox.delete(ANCHOR)
-
     def delete_all_song(self):
-        pygame.mixer.music.pause()
+        pygame.mixer.music.unload()
+        self.button_current_song['text'] = 'stop'
+        self.button_current_song.config(image=self.image_pause_song)
+        path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'mp3')
+        self.list_all_song.clear()
+        shutil.rmtree(path)
         self.listbox.delete(0, END)
+
+    def delete_song(self):
+        pygame.mixer.music.unload()
+        self.button_current_song['text'] = 'stop'
+        self.button_current_song.config(image=self.image_pause_song)
+        song_list = [os.path.basename(i.replace('mp3', '')) for i in self.list_all_song]
+        self.listbox.delete(0, END)
+        for song in song_list:
+            self.listbox.insert(END, song)
+        messagebox.showinfo("Delete song", "Choose a song")
+        self.listbox.bind("<Button 1>", lambda event: self.var.set(1))
+        self.del_func()
+
+    def del_func(self):
+        self.listbox.wait_variable(self.var)
+        index = int(self.listbox.curselection()[0])
+        remove_song = self.list_all_song[index]
+        self.list_all_song.pop(index)
+        os.remove(remove_song)
+        self.listbox.delete(ANCHOR)
+        self.listbox.unbind("<Button 1>")
 
 
 if __name__ == '__main__':
