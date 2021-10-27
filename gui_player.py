@@ -1,12 +1,11 @@
 import os
 import shutil
+from mutagen.mp3 import MP3
 from tkinter import *
-from tkinter import filedialog, ttk
+from tkinter import filedialog, ttk, messagebox
 import time
 import pygame
-from mutagen.mp3 import MP3
 import random
-from tkinter import messagebox
 
 
 class App:
@@ -18,12 +17,13 @@ class App:
         self.root = Tk()
         w = self.root.winfo_screenwidth()
         h = self.root.winfo_screenheight()
-        w = (w // 2) - (410 // 2)
-        h = (h // 2) - (400 // 2)
-        self.root.geometry(f'410x400+{w}+{h}')
+        w = (w // 2) - (420 // 2)
+        h = (h // 2) - (380 // 2)
+        self.root.geometry(f'420x380+{w}+{h}')
         self.root.title('MP3 Player')
         self.root.iconbitmap('images/MP3.ico')
         self.root.resizable(width=False, height=False)
+        self.root.configure(bg='#606776')
         self.bg = 'grey'
         self.font = 'Times new Roman 13 bold'
         self.conf = {'padx': (40, 10), 'pady': 10}
@@ -37,9 +37,12 @@ class App:
         self.id = None
         self.is_on = False
         self.same_song_on = False
+        self.i = None
+        self.frames = None
+        self.shot_id = None
         self.var = IntVar()
-        self.frame_add_del_music()
         self.frame_song_list()
+        self.frame_add_del_music()
         self.frame_current_song()
         self.frame_controller_button()
         self.root.mainloop()
@@ -48,7 +51,7 @@ class App:
 #                                                       Create frame
     # Frame add song, folder or delete song
     def frame_add_del_music(self):
-        add_del_frame = Frame(self.root)
+        add_del_frame = Frame(self.root, bg='#606776')
         self.main_menu = Menu()
         self.root.config(menu=self.main_menu)
         self.func = Menu(self.main_menu)
@@ -67,45 +70,47 @@ class App:
         self.button_repeat_song = Button(add_del_frame, image=image_repeat_song, bg='white')
         self.button_repeat_song.image = image_repeat_song
         self.button_repeat_song.bind('<Button-1>', self.same_song)
-        self.button_repeat_song.grid(row=0, column=1, padx=5)
+        self.button_repeat_song.grid(row=0, column=1, padx=5, pady=5)
 
         image_random_song = PhotoImage(file=r'../mp3player/images/random_song.png')
         self.button_random_song = Button(add_del_frame, image=image_random_song, bg='white')
         self.button_random_song.image = image_random_song
         self.button_random_song.bind('<Button-1>', self.switch_is_on)
-        self.button_random_song.grid(row=0, column=2, padx=5)
+        self.button_random_song.grid(row=0, column=2, padx=5, pady=5)
         add_del_frame.grid(row=0)
 
     # Frame for song list
     def frame_song_list(self):
-        list_frame = Frame(self.root)
+        list_frame = Frame(self.root, bg='#606776')
         scrollbar = Scrollbar(list_frame)
         scrollbar.pack(side=RIGHT, fill=BOTH)
         self.listbox = Listbox(list_frame, bg=self.bg, selectmode=EXTENDED, width=60, height=10)
         self.listbox.bind('<Double-Button-1>', self.func_double_click)
         self.listbox.config(yscrollcommand=scrollbar.set)
-        scrollbar.config(command=self.listbox.yview)
+        scrollbar.config(command=self.listbox.yview, bg='#606776')
         self.listbox.pack()
-        list_frame.grid(row=1, pady=15)
+        list_frame.grid(row=1, pady=10)
 
 ########################################################################################################################
 
     def frame_current_song(self):
-        current_song_frame = Frame(self.root)
-        self.label_cur_song = Label(current_song_frame, text='Choose song to play',
-                                    bg='dark grey', fg='white', width=60, height=2)
+        current_song_frame = Frame(self.root, bg='#606776')
+        self.label_cur_song = Label(current_song_frame, text='00:00     Choose song to play     00:00',
+                                    bg='#606776', fg='white', width=60, height=2)
         self.label_cur_song.grid(row=0, column=0)
         self.position_slider = ttk.Scale(current_song_frame, from_=0, to=100, orient=HORIZONTAL,
-                                         value=0, length=300, command=self.song_info)
+                                         value=0, length=230, command=self.song_info)
         self.position_slider.grid(row=1, column=0)
         current_song_frame.grid(row=2, pady=5)
 
     # Frame for manipulate songs via buttons
     def frame_controller_button(self):
-        button_frame = Frame(self.root)
+        button_frame = Frame(self.root, bg='#606776')
 
-        self.time_song = Label(button_frame, text='00:00 / 00:00')
-        self.time_song.grid(row=0, column=0, padx=5)
+        self.eq = Canvas(button_frame, width=70, height=38, bg='#606776', bd=0, highlightthickness=0)
+        self.eq.grid(row=0, column=0, padx=5)
+        self.frame = PhotoImage(file='images/eq1.gif')
+        self.eq.create_image(0, 0, anchor=NW, image=self.frame)
 
         # button previous song
         image_prev_song = PhotoImage(file=r'../mp3player/images/previous_song.png')
@@ -148,7 +153,6 @@ class App:
         print('def song_to_play():')
         index = int(self.listbox.curselection()[0])
         self.cur_song = self.list_all_song[index]
-        self.label_cur_song['text'] = os.path.basename(self.cur_song).replace('.mp3', '')
         self.cur_time = 0
         self.position_slider.config(value=int(self.cur_time))
         self.func_play_song()
@@ -163,6 +167,8 @@ class App:
         self.track_play()
 
     def track_play(self):
+        self.anim()
+        self.label_name = os.path.basename(self.cur_song).replace('.mp3', '')
         print(f'self.is_on = {self.is_on} in track_play')
         print(f'self.same_song_on = {self.same_song_on} in track_play')
         if self.is_on:
@@ -182,7 +188,7 @@ class App:
         self.cur_time += 1
         if int(self.cur_time) == int(self.len_song):
             if self.same_song_on:
-                self.label_cur_song['text'] = os.path.basename(self.cur_song).replace('.mp3', '')
+                self.label_cur_song['text'] = self.label_name
                 self.cur_time = 0
                 self.position_slider.config(value=int(self.cur_time))
                 self.func_play_song()
@@ -190,7 +196,7 @@ class App:
                 if self.is_on:
                     index = random.randint(0, len(self.list_all_song)-1)
                     self.cur_song = self.list_all_song[index]
-                    self.label_cur_song['text'] = os.path.basename(self.cur_song).replace('.mp3', '')
+                    self.label_cur_song['text'] = self.label_name
                     self.cur_time = 0
                     self.position_slider.config(value=int(self.cur_time))
                     self.func_play_song()
@@ -200,7 +206,7 @@ class App:
         convert_len_song = time.strftime('%M:%S', time.gmtime(self.len_song))
         convert_cur_time = time.strftime('%M:%S', time.gmtime(self.cur_time))
         self.position_slider.config(to=int(self.len_song), value=int(self.cur_time))
-        self.time_song.config(text=f'{convert_cur_time} / {convert_len_song}')
+        self.label_cur_song.config(text=f'{convert_cur_time}     {self.label_name}     {convert_len_song}')
         if self.id is not None:
             self.root.after_cancel(self.id)
         self.id = self.root.after(1000, self.track_play)
@@ -213,6 +219,7 @@ class App:
 
     # switch between play and stop song
     def play_stop_song(self):
+        self.anim()
         if self.cur_song == '':
             if self.button_current_song['text'] == 'play':
                 self.button_current_song['text'] = 'stop'
@@ -233,25 +240,47 @@ class App:
                 self.id = self.root.after(1000, self.track_play)
                 pygame.mixer.music.unpause()
 
+    def anim(self):
+        self.i = 0
+        self.frames = [PhotoImage(file='images/eq1.gif', format='gif -index %i' % (i)) for i in range(6)]
+        self.next_shot()
+
+    def next_shot(self):
+
+        if self.button_current_song['text'] == 'stop':
+            self.i += 1
+            if self.i == 6:
+                self.i = 0
+            self.eq.create_image(0, 0, anchor=NW, image=self.frames[self.i])
+
+        elif self.button_current_song['text'] == 'play':
+            self.eq.create_image(0, 0, anchor=NW, image=self.frames[self.i])
+
+        if self.shot_id is not None:
+            self.root.after_cancel(self.shot_id)
+        self.shot_id = self.root.after(100, self.next_shot)
+
     # Function for previous song
     def function_prev_song(self):
+        self.cur_time = 0
         self.button_current_song['text'] = 'stop'
         self.button_current_song.config(image=self.image_pause_song)
         index = self.list_all_song.index(self.cur_song) - 1
         self.cur_song = self.list_all_song[index]
-        self.label_cur_song['text'] = os.path.basename(self.cur_song).replace('.mp3', '')
+        self.label_cur_song['text'] = self.label_name
         print(self.cur_song)
         self.func_play_song()
 
     # Function for next song
     def function_next_song(self):
+        self.cur_time = 0
         self.button_current_song['text'] = 'stop'
         self.button_current_song.config(image=self.image_pause_song)
         index = self.list_all_song.index(self.cur_song) + 1
         if self.cur_song == self.list_all_song[-1]:
             index = 0
         self.cur_song = self.list_all_song[index]
-        self.label_cur_song['text'] = os.path.basename(self.cur_song).replace('.mp3', '')
+        self.label_cur_song['text'] = self.label_name
         self.func_play_song()
 
     def folder_song(self):

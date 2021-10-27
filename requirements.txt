@@ -6,6 +6,7 @@ mutagen==1.45.1
 packaging==21.0
 pycparser==2.20
 pygame==2.0.1
+PyMsgBox==1.0.9
 pyparsing==2.4.7
 PyYAML==6.0
 resolvelib==0.5.4
